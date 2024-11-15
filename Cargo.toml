@@ -11,6 +11,8 @@ vulkanalia = { version = "0.25.0", features = ["libloading", "provisional", "win
 raw-window-handle = { version = "0.6", optional = true }
 vulkanalia-sys = "0.25.0"
 vulkanalia-vma = "0.2.0"
+anyhow = "1.0.93"
+winit = "0.30.5"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 
