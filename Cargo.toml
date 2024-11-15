@@ -13,9 +13,15 @@ vulkanalia-sys = "0.25.0"
 vulkanalia-vma = "0.2.0"
 anyhow = "1.0.93"
 winit = "0.30.5"
+log = "0.4"
+pretty_env_logger = "0.5"
+png = "0.17"
+thiserror = "2.0.3"
+tobj = { version = "4.0.2", features = ["log"] }
+cgmath = "0.18"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 
-cocoa = { version = "0.25", optional = true }
-metal = { version = "0.27", optional = true }
+cocoa = { version = "0.26", optional = true }
+metal = { version = "0.30", optional = true }
 objc = { version = "0.2", optional = true }
