@@ -1,4 +1,4 @@
 # Sagitario Engine
 
-> [!INFO]
+> [!NOTE]
 > Engine on Rust
