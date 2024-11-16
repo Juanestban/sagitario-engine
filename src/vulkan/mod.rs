@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Ok, Result};
+use spawnchair::create_swapchain;
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
 use vulkanalia::prelude::v1_0::*;
 #[allow(unused_imports)]
@@ -18,6 +19,7 @@ use vulkanalia::Version;
 pub mod device;
 pub mod physical_device;
 pub mod queue_family;
+pub mod spawnchair;
 pub mod utils;
 pub mod validation_vk;
 
@@ -98,6 +100,8 @@ pub struct VulkanAppData {
   graphics_queue: vk::Queue,
   surface: vk::SurfaceKHR,
   present_queue: vk::Queue,
+  swapchain: vk::SwapchainKHR,
+  swapchain_images: Vec<vk::Image>,
 }
 
 impl Default for VulkanAppData {
@@ -108,6 +112,8 @@ impl Default for VulkanAppData {
       graphics_queue: vk::Queue::default(),
       surface: vk::SurfaceKHR::default(),
       present_queue: vk::Queue::default(),
+      swapchain: vk::SwapchainKHR::default(),
+      swapchain_images: Vec::default(),
     }
   }
 }
@@ -123,6 +129,7 @@ impl VulkanApp {
     pick_physical_device(&instance, &mut data)?;
 
     let device = create_logical_device(&entry, &instance, &mut data)?;
+    create_swapchain(window, &instance, &device, &mut data)?;
 
     Ok(Self {
       entry,
