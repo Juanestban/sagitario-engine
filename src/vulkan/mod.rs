@@ -1,7 +1,9 @@
 use anyhow::{anyhow, Ok, Result};
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
 use vulkanalia::prelude::v1_0::*;
-use vulkanalia::vk::ExtDebugUtilsExtension;
+#[allow(unused_imports)]
+use vulkanalia::vk::KhrSwapchainExtension;
+use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension};
 use vulkanalia::window as vk_window;
 use vulkanalia::{
   vk::{self, HasBuilder},
@@ -20,7 +22,7 @@ pub mod utils;
 pub mod validation_vk;
 
 use device::create_logical as create_logical_device;
-use physical_device::pick as pick_physical_device;
+use physical_device::pick_physical_device;
 use validation_vk::{debug_callback, validations_layers, VALIDATION_ENABLED};
 
 const PORTABILITY_MACOS_VERSION: Version = Version::new(1, 3, 216);
@@ -94,6 +96,8 @@ pub struct VulkanAppData {
   messenger: vk::DebugUtilsMessengerEXT,
   physical_device: vk::PhysicalDevice,
   graphics_queue: vk::Queue,
+  surface: vk::SurfaceKHR,
+  present_queue: vk::Queue,
 }
 
 impl Default for VulkanAppData {
@@ -102,6 +106,8 @@ impl Default for VulkanAppData {
       messenger: vk::DebugUtilsMessengerEXT::default(),
       physical_device: vk::PhysicalDevice::default(),
       graphics_queue: vk::Queue::default(),
+      surface: vk::SurfaceKHR::default(),
+      present_queue: vk::Queue::default(),
     }
   }
 }
@@ -112,6 +118,7 @@ impl VulkanApp {
     let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
     let mut data = VulkanAppData::default();
     let instance = create_vk_instance(window, &entry, &mut data)?;
+    data.surface = vk_window::create_surface(&instance, &window, &window)?;
 
     pick_physical_device(&instance, &mut data)?;
 
@@ -138,6 +145,7 @@ impl VulkanApp {
         .destroy_debug_utils_messenger_ext(self.data.messenger, None);
     }
 
+    self.instance.destroy_surface_khr(self.data.surface, None);
     self.instance.destroy_instance(None);
   }
 }
