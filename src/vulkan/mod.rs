@@ -13,7 +13,12 @@ use winit::window::Window;
 use vulkanalia::Version;
 
 // vk-sagitario
+pub mod physical_device;
+pub mod queue_family;
+pub mod utils;
 mod validation_vk;
+
+use physical_device::pick as pick_physical_device;
 use validation_vk::{debug_callback, validations_layers, VALIDATION_ENABLED};
 
 const PORTABILITY_MACOS_VERSION: Version = Version::new(1, 3, 216);
@@ -83,14 +88,16 @@ pub struct VulkanApp {
   data: VulkanAppData,
 }
 
-struct VulkanAppData {
+pub struct VulkanAppData {
   messenger: vk::DebugUtilsMessengerEXT,
+  physical_device: vk::PhysicalDevice,
 }
 
 impl Default for VulkanAppData {
   fn default() -> Self {
     Self {
       messenger: vk::DebugUtilsMessengerEXT::default(),
+      physical_device: vk::PhysicalDevice::default(),
     }
   }
 }
@@ -101,6 +108,8 @@ impl VulkanApp {
     let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
     let mut data = VulkanAppData::default();
     let instance = create_vk_instance(window, &entry, &mut data)?;
+
+    pick_physical_device(&instance, &mut data)?;
 
     Ok(Self { entry, instance, data })
   }
