@@ -9,7 +9,7 @@ use super::{utils::sagitario_error::SuitabilityError, VulkanAppData};
 #[allow(dead_code)]
 #[derive(Copy, Clone, Debug)]
 pub struct QueueFamilyIndices {
-  graphics: u32,
+  pub graphics: u32,
 }
 
 impl QueueFamilyIndices {

@@ -5,7 +5,7 @@ use vulkanalia::vk::ExtDebugUtilsExtension;
 use vulkanalia::window as vk_window;
 use vulkanalia::{
   vk::{self, HasBuilder},
-  Entry, Instance,
+  Device, Entry, Instance,
 };
 use winit::window::Window;
 
@@ -13,11 +13,13 @@ use winit::window::Window;
 use vulkanalia::Version;
 
 // vk-sagitario
+pub mod device;
 pub mod physical_device;
 pub mod queue_family;
 pub mod utils;
-mod validation_vk;
+pub mod validation_vk;
 
+use device::create_logical as create_logical_device;
 use physical_device::pick as pick_physical_device;
 use validation_vk::{debug_callback, validations_layers, VALIDATION_ENABLED};
 
@@ -31,14 +33,11 @@ unsafe fn create_vk_instance(window: &Window, entry: &Entry, data: &mut VulkanAp
     .engine_version(vk::make_version(1, 0, 0))
     .api_version(vk::make_version(1, 0, 0));
 
+  let layers = validations_layers(entry)?;
   let mut extensions = vk_window::get_required_instance_extensions(window)
     .iter()
     .map(|e| e.as_ptr())
     .collect::<Vec<_>>();
-
-  if VALIDATION_ENABLED {
-    extensions.push(vk::EXT_DEBUG_UTILS_EXTENSION.name.as_ptr());
-  }
 
   // Only for macOS
   // Required by Vulkan SDK on macOS since 1.3.216.
@@ -51,7 +50,9 @@ unsafe fn create_vk_instance(window: &Window, entry: &Entry, data: &mut VulkanAp
     vk::InstanceCreateFlags::empty()
   };
 
-  let layers = validations_layers(entry)?;
+  if VALIDATION_ENABLED {
+    extensions.push(vk::EXT_DEBUG_UTILS_EXTENSION.name.as_ptr());
+  }
 
   let mut info = vk::InstanceCreateInfo::builder()
     .application_info(&application_info)
@@ -86,11 +87,13 @@ pub struct VulkanApp {
   entry: Entry,
   instance: Instance,
   data: VulkanAppData,
+  device: Device,
 }
 
 pub struct VulkanAppData {
   messenger: vk::DebugUtilsMessengerEXT,
   physical_device: vk::PhysicalDevice,
+  graphics_queue: vk::Queue,
 }
 
 impl Default for VulkanAppData {
@@ -98,6 +101,7 @@ impl Default for VulkanAppData {
     Self {
       messenger: vk::DebugUtilsMessengerEXT::default(),
       physical_device: vk::PhysicalDevice::default(),
+      graphics_queue: vk::Queue::default(),
     }
   }
 }
@@ -111,7 +115,14 @@ impl VulkanApp {
 
     pick_physical_device(&instance, &mut data)?;
 
-    Ok(Self { entry, instance, data })
+    let device = create_logical_device(&entry, &instance, &mut data)?;
+
+    Ok(Self {
+      entry,
+      instance,
+      data,
+      device,
+    })
   }
 
   pub unsafe fn render(&mut self, _window: &Window) -> Result<()> {
@@ -119,6 +130,8 @@ impl VulkanApp {
   }
 
   pub unsafe fn destroy(&mut self) {
+    self.device.destroy_device(None);
+
     if VALIDATION_ENABLED {
       self
         .instance

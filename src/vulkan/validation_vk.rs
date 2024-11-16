@@ -10,7 +10,7 @@ use vulkanalia::{
 };
 
 pub const VALIDATION_ENABLED: bool = cfg!(debug_assertions);
-const VALIDATION_LAYER: vk::ExtensionName = vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
+pub const VALIDATION_LAYER: vk::ExtensionName = vk::ExtensionName::from_bytes(b"VK_LAYER_KHRONOS_validation");
 
 pub unsafe fn validations_layers(entry: &Entry) -> Result<Vec<*const i8>, Error> {
   let available_layers = entry
