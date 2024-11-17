@@ -70,6 +70,8 @@ pub unsafe fn create_swapchain(
     .clipped(true)
     .old_swapchain(vk::SwapchainKHR::null());
 
+  data.swapchain_format = surface_format.format;
+  data.swapchain_extent = extent;
   data.swapchain = device.create_swapchain_khr(&info, None)?;
   data.swapchain_images = device.get_swapchain_images_khr(data.swapchain)?;
 

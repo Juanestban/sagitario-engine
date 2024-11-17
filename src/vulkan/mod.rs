@@ -100,6 +100,8 @@ pub struct VulkanAppData {
   graphics_queue: vk::Queue,
   surface: vk::SurfaceKHR,
   present_queue: vk::Queue,
+  swapchain_format: vk::Format,
+  swapchain_extent: vk::Extent2D,
   swapchain: vk::SwapchainKHR,
   swapchain_images: Vec<vk::Image>,
 }
@@ -112,6 +114,8 @@ impl Default for VulkanAppData {
       graphics_queue: vk::Queue::default(),
       surface: vk::SurfaceKHR::default(),
       present_queue: vk::Queue::default(),
+      swapchain_format: vk::Format::default(),
+      swapchain_extent: vk::Extent2D::default(),
       swapchain: vk::SwapchainKHR::default(),
       swapchain_images: Vec::default(),
     }
@@ -145,6 +149,7 @@ impl VulkanApp {
 
   pub unsafe fn destroy(&mut self) {
     self.device.destroy_device(None);
+    self.device.destroy_swapchain_khr(self.data.swapchain, None);
 
     if VALIDATION_ENABLED {
       self
