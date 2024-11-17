@@ -9,7 +9,7 @@ use vulkanalia::{
 
 use super::queue_family::QueueFamilyIndices;
 use super::utils::sagitario_error::SuitabilityError;
-use super::{spawnchair::SwapchainSupport, VulkanAppData};
+use super::{spawnchain::SwapchainSupport, VulkanAppData};
 
 pub const DEVICE_EXTENSIONS: &[vk::ExtensionName] = &[vk::KHR_SWAPCHAIN_EXTENSION.name];
 

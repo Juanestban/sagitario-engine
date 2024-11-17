@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Ok, Result};
-use spawnchair::create_swapchain;
+use spawnchain::{create_swapchain, create_swapchain_image_views};
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
 use vulkanalia::prelude::v1_0::*;
 #[allow(unused_imports)]
@@ -19,7 +19,7 @@ use vulkanalia::Version;
 pub mod device;
 pub mod physical_device;
 pub mod queue_family;
-pub mod spawnchair;
+pub mod spawnchain;
 pub mod utils;
 pub mod validation_vk;
 
@@ -104,6 +104,7 @@ pub struct VulkanAppData {
   swapchain_extent: vk::Extent2D,
   swapchain: vk::SwapchainKHR,
   swapchain_images: Vec<vk::Image>,
+  swapchain_images_views: Vec<vk::ImageView>,
 }
 
 impl Default for VulkanAppData {
@@ -118,6 +119,7 @@ impl Default for VulkanAppData {
       swapchain_extent: vk::Extent2D::default(),
       swapchain: vk::SwapchainKHR::default(),
       swapchain_images: Vec::default(),
+      swapchain_images_views: Vec::default(),
     }
   }
 }
@@ -133,7 +135,9 @@ impl VulkanApp {
     pick_physical_device(&instance, &mut data)?;
 
     let device = create_logical_device(&entry, &instance, &mut data)?;
+
     create_swapchain(window, &instance, &device, &mut data)?;
+    create_swapchain_image_views(&device, &mut data)?;
 
     Ok(Self {
       entry,
@@ -148,8 +152,15 @@ impl VulkanApp {
   }
 
   pub unsafe fn destroy(&mut self) {
-    self.device.destroy_device(None);
+    self
+      .data
+      .swapchain_images_views
+      .iter()
+      .for_each(|v| self.device.destroy_image_view(*v, None));
+
     self.device.destroy_swapchain_khr(self.data.swapchain, None);
+    self.device.destroy_device(None);
+    self.instance.destroy_surface_khr(self.data.surface, None);
 
     if VALIDATION_ENABLED {
       self
@@ -157,7 +168,6 @@ impl VulkanApp {
         .destroy_debug_utils_messenger_ext(self.data.messenger, None);
     }
 
-    self.instance.destroy_surface_khr(self.data.surface, None);
     self.instance.destroy_instance(None);
   }
 }
