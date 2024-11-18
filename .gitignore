@@ -1,1 +1,9 @@
 /target
+
+# exe or build files
+*.exe
+*.o
+*.a
+
+# shaders
+*.spv

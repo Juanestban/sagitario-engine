@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Ok, Result};
+use log::info;
 use spawnchain::{create_swapchain, create_swapchain_image_views};
 use vulkanalia::loader::{LibloadingLoader, LIBRARY};
 use vulkanalia::prelude::v1_0::*;
-#[allow(unused_imports)]
 use vulkanalia::vk::KhrSwapchainExtension;
 use vulkanalia::vk::{ExtDebugUtilsExtension, KhrSurfaceExtension};
 use vulkanalia::window as vk_window;
@@ -18,6 +18,7 @@ use vulkanalia::Version;
 // vk-sagitario
 pub mod device;
 pub mod physical_device;
+pub mod pipe;
 pub mod queue_family;
 pub mod spawnchain;
 pub mod utils;
@@ -25,11 +26,103 @@ pub mod validation_vk;
 
 use device::create_logical as create_logical_device;
 use physical_device::pick_physical_device;
+use pipe::create_pipeline;
 use validation_vk::{debug_callback, validations_layers, VALIDATION_ENABLED};
 
 const PORTABILITY_MACOS_VERSION: Version = Version::new(1, 3, 216);
 
+#[allow(dead_code)]
+pub struct VulkanApp {
+  entry: Entry,
+  instance: Instance,
+  data: VulkanAppData,
+  device: Device,
+}
+
+pub struct VulkanAppData {
+  messenger: vk::DebugUtilsMessengerEXT,
+  surface: vk::SurfaceKHR,
+  physical_device: vk::PhysicalDevice,
+  graphics_queue: vk::Queue,
+  present_queue: vk::Queue,
+  swapchain_format: vk::Format,
+  swapchain_extent: vk::Extent2D,
+  swapchain: vk::SwapchainKHR,
+  swapchain_images: Vec<vk::Image>,
+  swapchain_images_views: Vec<vk::ImageView>,
+}
+
+impl Default for VulkanAppData {
+  fn default() -> Self {
+    Self {
+      messenger: vk::DebugUtilsMessengerEXT::default(),
+      physical_device: vk::PhysicalDevice::default(),
+      graphics_queue: vk::Queue::default(),
+      surface: vk::SurfaceKHR::default(),
+      present_queue: vk::Queue::default(),
+      swapchain_format: vk::Format::default(),
+      swapchain_extent: vk::Extent2D::default(),
+      swapchain: vk::SwapchainKHR::default(),
+      swapchain_images: Vec::default(),
+      swapchain_images_views: Vec::default(),
+    }
+  }
+}
+
+impl VulkanApp {
+  pub unsafe fn create(window: &Window) -> Result<Self> {
+    info!("[+] VulkanApp::create -> starting");
+
+    let loader = LibloadingLoader::new(LIBRARY)?;
+    let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
+    let mut data = VulkanAppData::default();
+    let instance = create_vk_instance(window, &entry, &mut data)?;
+    data.surface = vk_window::create_surface(&instance, &window, &window)?;
+
+    pick_physical_device(&instance, &mut data)?;
+
+    let device = create_logical_device(&entry, &instance, &mut data)?;
+
+    create_swapchain(window, &instance, &device, &mut data)?;
+    create_swapchain_image_views(&device, &mut data)?;
+    create_pipeline(&device, &mut data)?;
+
+    Ok(Self {
+      entry,
+      instance,
+      data,
+      device,
+    })
+  }
+
+  pub unsafe fn render(&mut self, _window: &Window) -> Result<()> {
+    Ok(())
+  }
+
+  pub unsafe fn destroy(&mut self) {
+    self
+      .data
+      .swapchain_images_views
+      .iter()
+      .for_each(|v| self.device.destroy_image_view(*v, None));
+
+    self.device.destroy_swapchain_khr(self.data.swapchain, None);
+    self.device.destroy_device(None);
+    self.instance.destroy_surface_khr(self.data.surface, None);
+
+    if VALIDATION_ENABLED {
+      self
+        .instance
+        .destroy_debug_utils_messenger_ext(self.data.messenger, None);
+    }
+
+    self.instance.destroy_instance(None);
+  }
+}
+
 unsafe fn create_vk_instance(window: &Window, entry: &Entry, data: &mut VulkanAppData) -> Result<Instance> {
+  info!("[+] creating_vk_instance");
+
   let application_info = vk::ApplicationInfo::builder()
     .application_name(b"Sagitario Engine\0")
     .application_version(vk::make_version(1, 0, 0))
@@ -46,7 +139,7 @@ unsafe fn create_vk_instance(window: &Window, entry: &Entry, data: &mut VulkanAp
   // Only for macOS
   // Required by Vulkan SDK on macOS since 1.3.216.
   let flags = if cfg!(target_os = "macos") && entry.version()? >= PORTABILITY_MACOS_VERSION {
-    print!("[INFO]: Enabling extensions for macOS");
+    info!("[INFO]: Enabling extensions for macOS");
     extensions.push(vk::KHR_GET_PHYSICAL_DEVICE_PROPERTIES2_EXTENSION.name.as_ptr());
     extensions.push(vk::KHR_PORTABILITY_ENUMERATION_EXTENSION.name.as_ptr());
     vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR
@@ -84,90 +177,4 @@ unsafe fn create_vk_instance(window: &Window, entry: &Entry, data: &mut VulkanAp
   }
 
   Ok(instance)
-}
-
-#[allow(dead_code)]
-pub struct VulkanApp {
-  entry: Entry,
-  instance: Instance,
-  data: VulkanAppData,
-  device: Device,
-}
-
-pub struct VulkanAppData {
-  messenger: vk::DebugUtilsMessengerEXT,
-  physical_device: vk::PhysicalDevice,
-  graphics_queue: vk::Queue,
-  surface: vk::SurfaceKHR,
-  present_queue: vk::Queue,
-  swapchain_format: vk::Format,
-  swapchain_extent: vk::Extent2D,
-  swapchain: vk::SwapchainKHR,
-  swapchain_images: Vec<vk::Image>,
-  swapchain_images_views: Vec<vk::ImageView>,
-}
-
-impl Default for VulkanAppData {
-  fn default() -> Self {
-    Self {
-      messenger: vk::DebugUtilsMessengerEXT::default(),
-      physical_device: vk::PhysicalDevice::default(),
-      graphics_queue: vk::Queue::default(),
-      surface: vk::SurfaceKHR::default(),
-      present_queue: vk::Queue::default(),
-      swapchain_format: vk::Format::default(),
-      swapchain_extent: vk::Extent2D::default(),
-      swapchain: vk::SwapchainKHR::default(),
-      swapchain_images: Vec::default(),
-      swapchain_images_views: Vec::default(),
-    }
-  }
-}
-
-impl VulkanApp {
-  pub unsafe fn create(window: &Window) -> Result<Self> {
-    let loader = LibloadingLoader::new(LIBRARY)?;
-    let entry = Entry::new(loader).map_err(|b| anyhow!("{}", b))?;
-    let mut data = VulkanAppData::default();
-    let instance = create_vk_instance(window, &entry, &mut data)?;
-    data.surface = vk_window::create_surface(&instance, &window, &window)?;
-
-    pick_physical_device(&instance, &mut data)?;
-
-    let device = create_logical_device(&entry, &instance, &mut data)?;
-
-    create_swapchain(window, &instance, &device, &mut data)?;
-    create_swapchain_image_views(&device, &mut data)?;
-
-    Ok(Self {
-      entry,
-      instance,
-      data,
-      device,
-    })
-  }
-
-  pub unsafe fn render(&mut self, _window: &Window) -> Result<()> {
-    Ok(())
-  }
-
-  pub unsafe fn destroy(&mut self) {
-    self
-      .data
-      .swapchain_images_views
-      .iter()
-      .for_each(|v| self.device.destroy_image_view(*v, None));
-
-    self.device.destroy_swapchain_khr(self.data.swapchain, None);
-    self.device.destroy_device(None);
-    self.instance.destroy_surface_khr(self.data.surface, None);
-
-    if VALIDATION_ENABLED {
-      self
-        .instance
-        .destroy_debug_utils_messenger_ext(self.data.messenger, None);
-    }
-
-    self.instance.destroy_instance(None);
-  }
 }

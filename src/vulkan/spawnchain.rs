@@ -38,6 +38,9 @@ pub unsafe fn create_swapchain(
   let present_mode = get_swapchain_present_mode(&support.present_modes);
   let extent = get_swapchain_extent(window, support.capabilities);
 
+  data.swapchain_format = surface_format.format;
+  data.swapchain_extent = extent;
+
   let mut image_count = support.capabilities.min_image_count + 1;
 
   if support.capabilities.max_image_count != 0 && image_count > support.capabilities.max_image_count {
@@ -70,8 +73,6 @@ pub unsafe fn create_swapchain(
     .clipped(true)
     .old_swapchain(vk::SwapchainKHR::null());
 
-  data.swapchain_format = surface_format.format;
-  data.swapchain_extent = extent;
   data.swapchain = device.create_swapchain_khr(&info, None)?;
   data.swapchain_images = device.get_swapchain_images_khr(data.swapchain)?;
 
