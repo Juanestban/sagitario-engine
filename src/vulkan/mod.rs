@@ -26,7 +26,7 @@ pub mod validation_vk;
 
 use device::create_logical as create_logical_device;
 use physical_device::pick_physical_device;
-use pipe::create_pipeline;
+use pipe::{create_pipeline, render_pass::create_render_pass};
 use validation_vk::{debug_callback, validations_layers, VALIDATION_ENABLED};
 
 const PORTABILITY_MACOS_VERSION: Version = Version::new(1, 3, 216);
@@ -50,6 +50,9 @@ pub struct VulkanAppData {
   swapchain: vk::SwapchainKHR,
   swapchain_images: Vec<vk::Image>,
   swapchain_images_views: Vec<vk::ImageView>,
+  render_pass: vk::RenderPass,
+  pipeline_layout: vk::PipelineLayout,
+  pipeline: vk::Pipeline,
 }
 
 impl Default for VulkanAppData {
@@ -65,6 +68,9 @@ impl Default for VulkanAppData {
       swapchain: vk::SwapchainKHR::default(),
       swapchain_images: Vec::default(),
       swapchain_images_views: Vec::default(),
+      pipeline_layout: vk::PipelineLayout::default(),
+      render_pass: vk::RenderPass::default(),
+      pipeline: vk::Pipeline::default(),
     }
   }
 }
@@ -85,6 +91,7 @@ impl VulkanApp {
 
     create_swapchain(window, &instance, &device, &mut data)?;
     create_swapchain_image_views(&device, &mut data)?;
+    create_render_pass(&instance, &device, &mut data)?;
     create_pipeline(&device, &mut data)?;
 
     Ok(Self {
@@ -100,6 +107,9 @@ impl VulkanApp {
   }
 
   pub unsafe fn destroy(&mut self) {
+    self.device.destroy_pipeline(self.data.pipeline, None);
+    self.device.destroy_pipeline_layout(self.data.pipeline_layout, None);
+    self.device.destroy_render_pass(self.data.render_pass, None);
     self
       .data
       .swapchain_images_views
