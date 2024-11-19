@@ -16,7 +16,9 @@ use winit::window::Window;
 use vulkanalia::Version;
 
 // vk-sagitario
+pub mod commands;
 pub mod device;
+pub mod framebuffers;
 pub mod physical_device;
 pub mod pipe;
 pub mod queue_family;
@@ -24,7 +26,9 @@ pub mod spawnchain;
 pub mod utils;
 pub mod validation_vk;
 
+use commands::{create_command_buffers, create_command_pool};
 use device::create_logical as create_logical_device;
+use framebuffers::create_framebuffers;
 use physical_device::pick_physical_device;
 use pipe::{create_pipeline, render_pass::create_render_pass};
 use validation_vk::{debug_callback, validations_layers, VALIDATION_ENABLED};
@@ -53,6 +57,9 @@ pub struct VulkanAppData {
   render_pass: vk::RenderPass,
   pipeline_layout: vk::PipelineLayout,
   pipeline: vk::Pipeline,
+  framebuffers: Vec<vk::Framebuffer>,
+  command_pool: vk::CommandPool,
+  command_buffers: Vec<vk::CommandBuffer>,
 }
 
 impl Default for VulkanAppData {
@@ -71,6 +78,9 @@ impl Default for VulkanAppData {
       pipeline_layout: vk::PipelineLayout::default(),
       render_pass: vk::RenderPass::default(),
       pipeline: vk::Pipeline::default(),
+      command_pool: vk::CommandPool::default(),
+      framebuffers: Vec::default(),
+      command_buffers: Vec::default(),
     }
   }
 }
@@ -93,6 +103,9 @@ impl VulkanApp {
     create_swapchain_image_views(&device, &mut data)?;
     create_render_pass(&instance, &device, &mut data)?;
     create_pipeline(&device, &mut data)?;
+    create_framebuffers(&device, &mut data)?;
+    create_command_pool(&instance, &device, &mut data)?;
+    create_command_buffers(&device, &mut data)?;
 
     Ok(Self {
       entry,
@@ -107,6 +120,12 @@ impl VulkanApp {
   }
 
   pub unsafe fn destroy(&mut self) {
+    self.device.destroy_command_pool(self.data.command_pool, None);
+    self
+      .data
+      .framebuffers
+      .iter()
+      .for_each(|f| self.device.destroy_framebuffer(*f, None));
     self.device.destroy_pipeline(self.data.pipeline, None);
     self.device.destroy_pipeline_layout(self.data.pipeline_layout, None);
     self.device.destroy_render_pass(self.data.render_pass, None);
