@@ -22,6 +22,7 @@ pub mod framebuffers;
 pub mod physical_device;
 pub mod pipe;
 pub mod queue_family;
+pub mod semaphore;
 pub mod spawnchain;
 pub mod utils;
 pub mod validation_vk;
@@ -31,9 +32,11 @@ use device::create_logical as create_logical_device;
 use framebuffers::create_framebuffers;
 use physical_device::pick_physical_device;
 use pipe::{create_pipeline, render_pass::create_render_pass};
+use semaphore::create_sync_objects;
 use validation_vk::{debug_callback, validations_layers, VALIDATION_ENABLED};
 
 const PORTABILITY_MACOS_VERSION: Version = Version::new(1, 3, 216);
+const MAX_FRAMES_IN_FLIGHT: usize = 2;
 
 #[allow(dead_code)]
 pub struct VulkanApp {
@@ -41,6 +44,7 @@ pub struct VulkanApp {
   instance: Instance,
   data: VulkanAppData,
   device: Device,
+  frame: usize,
 }
 
 pub struct VulkanAppData {
@@ -60,6 +64,10 @@ pub struct VulkanAppData {
   framebuffers: Vec<vk::Framebuffer>,
   command_pool: vk::CommandPool,
   command_buffers: Vec<vk::CommandBuffer>,
+  image_available_semaphore: Vec<vk::Semaphore>,
+  render_finished_semaphore: Vec<vk::Semaphore>,
+  in_flight_fences: Vec<vk::Fence>,
+  images_in_flight: Vec<vk::Fence>,
 }
 
 impl Default for VulkanAppData {
@@ -81,6 +89,10 @@ impl Default for VulkanAppData {
       command_pool: vk::CommandPool::default(),
       framebuffers: Vec::default(),
       command_buffers: Vec::default(),
+      image_available_semaphore: Vec::default(),
+      render_finished_semaphore: Vec::default(),
+      in_flight_fences: Vec::default(),
+      images_in_flight: Vec::default(),
     }
   }
 }
@@ -106,20 +118,89 @@ impl VulkanApp {
     create_framebuffers(&device, &mut data)?;
     create_command_pool(&instance, &device, &mut data)?;
     create_command_buffers(&device, &mut data)?;
+    create_sync_objects(&device, &mut data)?;
 
     Ok(Self {
       entry,
       instance,
       data,
       device,
+      frame: 0,
     })
   }
 
   pub unsafe fn render(&mut self, _window: &Window) -> Result<()> {
+    let in_flight_fence = self.data.in_flight_fences[self.frame];
+
+    self.device.wait_for_fences(&[in_flight_fence], true, u64::MAX)?;
+
+    let image_index = self
+      .device
+      .acquire_next_image_khr(
+        self.data.swapchain,
+        u64::MAX,
+        self.data.image_available_semaphore[self.frame],
+        vk::Fence::null(),
+      )?
+      .0 as usize;
+
+    let image_in_flight = self.data.images_in_flight[image_index];
+
+    if !image_in_flight.is_null() {
+      self.device.wait_for_fences(&[image_in_flight], true, u64::MAX)?;
+    }
+
+    self.data.images_in_flight[image_index] = in_flight_fence;
+
+    let wait_semaphores = &[self.data.image_available_semaphore[self.frame]];
+    let wait_stages = &[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+    let command_buffers = &[self.data.command_buffers[image_index]];
+    let signal_semaphores = &[self.data.render_finished_semaphore[self.frame]];
+    let submit_info = vk::SubmitInfo::builder()
+      .wait_semaphores(wait_semaphores)
+      .wait_dst_stage_mask(wait_stages)
+      .command_buffers(command_buffers)
+      .signal_semaphores(signal_semaphores);
+
+    self.device.reset_fences(&[in_flight_fence])?;
+
+    self
+      .device
+      .queue_submit(self.data.graphics_queue, &[submit_info], in_flight_fence)?;
+
+    let swapchains = &[self.data.swapchain];
+    let image_indices = &[image_index as u32];
+    let present_info = vk::PresentInfoKHR::builder()
+      .wait_semaphores(signal_semaphores)
+      .swapchains(swapchains)
+      .image_indices(image_indices);
+
+    self.device.queue_present_khr(self.data.present_queue, &present_info)?;
+
+    self.frame = (self.frame + 1) % MAX_FRAMES_IN_FLIGHT;
+
     Ok(())
   }
 
   pub unsafe fn destroy(&mut self) {
+    self.device.device_wait_idle().unwrap();
+
+    self
+      .data
+      .in_flight_fences
+      .iter()
+      .for_each(|f| self.device.destroy_fence(*f, None));
+    self
+      .data
+      .render_finished_semaphore
+      .iter()
+      .for_each(|s| self.device.destroy_semaphore(*s, None));
+    self
+      .data
+      .image_available_semaphore
+      .iter()
+      .for_each(|s| self.device.destroy_semaphore(*s, None));
+
     self.device.destroy_command_pool(self.data.command_pool, None);
     self
       .data

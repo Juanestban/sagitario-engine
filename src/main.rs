@@ -1,13 +1,24 @@
 use anyhow::{Ok, Result};
+use image::GenericImageView;
 use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::window::{Theme, Window, WindowId};
+use winit::window::{Icon, Theme, Window, WindowId};
 
 mod vulkan;
 use vulkan::VulkanApp;
 // use vulkan::create_vk_instance;
+
+fn load_icon() -> Result<Icon, Box<dyn std::error::Error>> {
+  let icon_path = include_bytes!("./assets/icon.png");
+  let image = image::load_from_memory(icon_path)?;
+  let (width, height) = image.dimensions();
+  let rgba = image.into_rgba8().into_raw();
+
+  // Crear un ícono para winit
+  Icon::from_rgba(rgba, width, height).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
+}
 
 #[derive(Default)]
 struct App {
@@ -17,10 +28,13 @@ struct App {
 
 impl ApplicationHandler for App {
   fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+    let icon = load_icon().unwrap();
+
     let custom_window = Window::default_attributes()
       .with_theme(Some(Theme::Dark))
       .with_title("Sagitario Engine")
       .with_inner_size(LogicalSize::new(800, 600))
+      .with_window_icon(Some(icon))
       .with_active(true);
 
     self.window = Some(event_loop.create_window(custom_window).unwrap());
