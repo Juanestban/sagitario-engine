@@ -1,6 +1,7 @@
 MIT License
 
 Copyright (c) 2024-present Sagitario Engine contributors on AUTHORS.md.
+
 Copyright (c) 2024 Juan Esteban.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
