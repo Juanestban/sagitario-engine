@@ -1,46 +1,34 @@
-use std::{any::Any, fmt::Debug};
+use std::fmt::Debug;
 
-fn single_print<T: Debug + 'static + Any>(args: Vec<T>) {
-  let message = args
-    .iter()
-    .map(|arg| {
-      if let Some(text) = (arg as &dyn Any).downcast_ref::<&str>() {
-        return text.to_string();
-      }
+fn single_print<T: Debug>(args: Vec<T>) {
+  for arg in args {
+    print!("{:?}", arg);
+  }
 
-      if let Some(text) = (arg as &dyn Any).downcast_ref::<String>() {
-        return text.clone();
-      }
-
-      format!("{:?}", arg) // Usar Debug para cualquier otro tipo
-    })
-    .collect::<Vec<String>>()
-    .join(" ");
-
-  println!("{}\x1b[0m", message);
+  println!("\x1b[0m");
 }
 
-pub fn success<T: Debug + 'static + Any>(args: Vec<T>) {
+pub fn success<T: Debug>(args: Vec<T>) {
   print!("\x1b[1;32m");
   single_print(args);
 }
 
-pub fn info<T: Debug + 'static + Any>(args: Vec<T>) {
+pub fn info<T: Debug>(args: Vec<T>) {
   print!("\x1b[1;34m");
   single_print(args);
 }
 
-pub fn note<T: Debug + 'static + Any>(args: Vec<T>) {
+pub fn note<T: Debug>(args: Vec<T>) {
   print!("\x1b[1;35m");
   single_print(args);
 }
 
-pub fn warn<T: Debug + 'static + Any>(args: Vec<T>) {
+pub fn warn<T: Debug>(args: Vec<T>) {
   print!("\x1b[1;33m");
   single_print(args);
 }
 
-pub fn danger<T: Debug + 'static + Any>(args: Vec<T>) {
+pub fn danger<T: Debug>(args: Vec<T>) {
   print!("\x1b[1;31m");
   single_print(args);
 }
