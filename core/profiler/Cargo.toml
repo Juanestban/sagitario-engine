@@ -1,0 +1,12 @@
+[package]
+name = "sagitario-profiler"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/juanestban/sagitario-engine"
+authors = ["Juan Esteban - juanestbandev"]
+
+[dependencies]
+
+[lib]
+path = "src/lib.rs"
