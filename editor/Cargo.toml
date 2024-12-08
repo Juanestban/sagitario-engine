@@ -1,0 +1,32 @@
+[package]
+name = "sagitario-editor"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/juanestban/sagitario-engine"
+authors = ["Juan Esteban - juanestbandev"]
+
+[dependencies]
+vulkanalia = { version = "0.25.0", features = [
+  "libloading",
+  "provisional",
+  "window",
+] }
+raw-window-handle = { version = "0.6", optional = true }
+vulkanalia-sys = "0.25.0"
+vulkanalia-vma = "0.2.0"
+anyhow = "1.0.94"
+winit = "0.30.5"
+log = "0.4"
+pretty_env_logger = "0.5"
+png = "0.17.15"
+thiserror = "2.0.5"
+tobj = { version = "4.0.2", features = ["log"] }
+cgmath = "0.18"
+image = "0.25.5"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+
+cocoa = { version = "0.26", optional = true }
+metal = { version = "0.30", optional = true }
+objc = { version = "0.2", optional = true }
