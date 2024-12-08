@@ -1,5 +1,5 @@
 [workspace]
-members = ["modules/sagitario-lng", "editor", "core/profiler", "core/debugger"]
+members = ["modules/sagitario-lng", "editor", "core/profiler", "core/debugger", "core/logger"]
 
 [profile.dev]
 opt-level = 0

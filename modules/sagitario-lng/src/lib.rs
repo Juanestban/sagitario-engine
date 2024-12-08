@@ -1,3 +1,3 @@
-fn main() {
-  println!("hi here!");
+pub fn compiler() {
+  println!("on maintenance!");
 }

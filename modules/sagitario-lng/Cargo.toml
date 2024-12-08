@@ -7,6 +7,7 @@ repository = "https://github.com/juanestban/sagitario-engine"
 authors = ["Juan Esteban - juanestbandev"]
 
 [dependencies]
+sagitario-logger = { path = "../../core/logger" }
 
 [lib]
 path = "./src/lib.rs"
