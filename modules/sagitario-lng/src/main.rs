@@ -23,8 +23,12 @@ fn main() {
   // }
 
   let mut chunk = Chunk::new();
-  chunk.write_chunk(OpCode::RETURN);
-  chunk.write_chunk(OpCode::FALSE);
+  let constant = chunk.add_constants(1.2);
+
+  chunk.write_chunk(OpCode::CONSTANT as usize);
+  chunk.write_chunk(constant);
+
+  chunk.write_chunk(OpCode::RETURN as usize);
   disassemble_chunk(&chunk, &"test chunk");
   chunk.free_chunk();
 }

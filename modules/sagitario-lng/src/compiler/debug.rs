@@ -1,4 +1,5 @@
 use super::csg_chunk::{Chunk, OpCode};
+use super::value::print_value;
 use sagitario_logger::info;
 
 pub fn disassemble_chunk(chunk: &Chunk, name: &str) {
@@ -16,6 +17,7 @@ fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
   let instruction = unsafe { *chunk.code.add(offset) };
 
   match instruction {
+    x if x == OpCode::CONSTANT as u8 => constant_instruction("CONSTANT", chunk, offset),
     x if x == OpCode::RETURN as u8 => simple_instruction("RETURN", offset),
     _ => {
       info(vec![format!("unknown opcode {}", instruction)]);
@@ -29,4 +31,21 @@ fn simple_instruction(name: &str, offset: usize) -> usize {
   info(vec![format!("{}", name)]);
 
   offset + 1
+}
+
+fn constant_instruction(name: &str, chunk: &Chunk, offset: usize) -> usize {
+  let constant = unsafe { *chunk.code.add(offset + 1) };
+  let constant_string = constant.to_string();
+
+  info(vec![format!(
+    "{name} {constant}'",
+    name = name,
+    constant = constant_string.as_str()
+  )]);
+
+  let value = unsafe { *chunk.constants.values.add(constant as usize) };
+
+  print_value(value);
+
+  offset + 2
 }
