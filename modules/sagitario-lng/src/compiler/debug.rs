@@ -14,6 +14,12 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str) {
 fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
   info(vec![format!("{:04}", offset)]);
 
+  if offset > 0 && unsafe { *chunk.lines.add(offset) == *chunk.lines.add(offset - 1) } {
+    info(vec!["   | "]);
+  } else {
+    info(vec![format!("{:>4}", unsafe { *chunk.lines.add(offset) })]);
+  }
+
   let instruction = unsafe { *chunk.code.add(offset) };
 
   match instruction {
@@ -37,11 +43,7 @@ fn constant_instruction(name: &str, chunk: &Chunk, offset: usize) -> usize {
   let constant = unsafe { *chunk.code.add(offset + 1) };
   let constant_string = constant.to_string();
 
-  info(vec![format!(
-    "{name} {constant}'",
-    name = name,
-    constant = constant_string.as_str()
-  )]);
+  info(vec![format!("{:<16} {:>4} '", name, constant_string.as_str())]);
 
   let value = unsafe { *chunk.constants.values.add(constant as usize) };
 

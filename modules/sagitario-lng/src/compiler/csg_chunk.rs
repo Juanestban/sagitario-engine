@@ -23,6 +23,7 @@ pub struct Chunk {
   pub count: usize,
   pub capacity: usize,
   pub code: *mut u8,
+  pub lines: *mut u8,
   pub constants: ValueArray,
 }
 
@@ -31,20 +32,36 @@ impl Chunk {
     Self {
       count: 0,
       capacity: 0,
+      lines: ptr::null_mut(),
       code: ptr::null_mut(),
       constants: ValueArray::new(),
     }
   }
 
-  pub fn write_chunk(&mut self, byte: usize) {
+  pub fn write_chunk(&mut self, byte: u8, line: u8) {
     if self.capacity < self.count + 1 {
       let old_capacity = self.capacity;
       self.capacity = grow_capacity(old_capacity);
       self.code = grow_array::<u8>(self.code, old_capacity, self.capacity);
+
+      if self.code.is_null() {
+        panic!("Failed to allocate memory for code array");
+      }
+
+      self.lines = grow_array::<u8>(self.lines, old_capacity, self.capacity);
+
+      if self.lines.is_null() {
+        panic!("Failed to allocate memory for lines array");
+      }
     }
 
-    unsafe {
-      *self.code.add(self.count) = byte as u8;
+    if !self.code.is_null() && !self.lines.is_null() {
+      unsafe {
+        *self.code.add(self.count) = byte;
+        *self.lines.add(self.count) = line;
+      }
+    } else {
+      panic!("Null pointer desreference")
     }
 
     self.count += 1;
@@ -58,6 +75,7 @@ impl Chunk {
 
   pub fn free_chunk(&mut self) {
     free_array::<u8>(self.code, self.capacity);
+    free_array::<u8>(self.lines, self.capacity);
     self.constants.free_value_array();
 
     *self = Chunk::new();
